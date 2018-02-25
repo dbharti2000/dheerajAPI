@@ -3,7 +3,7 @@ Feature: Client API Collections - Specific format
 
     Scenario: get call
         Given I navigate to google search
-        When I send the GET request
+        When I make a GET request
         Then I expect the response code 200
 
     @test
@@ -33,3 +33,5 @@ Feature: Client API Collections - Specific format
         Given I have the xml response
         Then I should see the below xml data in response:
             | name | HSV Maloo |
+            | name | P50       |
+            | name | Royals    |

@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.restassured.path.json.JsonPath;
 import com.jayway.restassured.path.xml.element.NodeChildren;
 import com.jayway.restassured.response.Response;
+import com.jayway.restassured.specification.RequestSpecification;
+import com.jayway.restassured.specification.ResponseSpecification;
 import cucumber.api.DataTable;
 
 import java.awt.*;
@@ -18,6 +20,7 @@ import com.jayway.restassured.path.xml.XmlPath;
 
 import static com.jayway.restassured.RestAssured.given;
 import static com.jayway.restassured.path.xml.XmlPath.*;
+import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertThat;
@@ -32,10 +35,26 @@ public class RestClient {
     private static String requestURL = "";
     private static Map<String, String> requestHeaders = new HashMap<String, String>();
     private static String requestBody = "";
-    private static Response response;
+    protected static Response response;
     private static String responseString = "";
     private static String jsonCarArray = "";
     private static String xmlString = "";
+
+
+    private RequestSpecification giveRestAssured() {
+        return given().log().all().headers(requestHeaders);
+    }
+
+
+    protected Response performGetRequest() {
+        response = giveRestAssured().expect().get(requestURL);
+        responseString = response.asString();
+        return response;
+    }
+
+    private ResponseSpecification prepareRequest() {
+        return giveRestAssured().body(requestBody).expect();
+    }
 
 
     public void setRequestURL(String url) {
@@ -46,15 +65,6 @@ public class RestClient {
 
         requestBody = body;
     }
-
-    public void performGetRequest() {
-        response = given().log().all().headers(requestHeaders)
-                .expect().get(requestURL);
-
-        responseString = response.asString();
-
-    }
-
 
     public String getResponseAsString() {
         return responseString;
@@ -92,11 +102,6 @@ public class RestClient {
 
     }
 
-    public String setJsonStringInVariable() {
-        jsonCarArray = "{\"car\": [{ \"color\" : \"Black\", \"type\" : \"BMW\" }, { \"color\" : \"Red\", \"type\" : \"FIAT\" }]}";
-        return jsonCarArray.toString();
-    }
-
     public String setXmlStringInVariable() {
         xmlString = "<records>\n" +
                 "      <car name='HSV Maloo' make='Holden' year='2006'>\n" +
@@ -107,7 +112,7 @@ public class RestClient {
                 "        <country>Isle of Man</country>\n" +
                 "        <record type='size'>Street-Legal Car at 99cm wide, 59kg</record>\n" +
                 "      </car>\n" +
-                "      <car name='Royale' make='Bugatti' year='1931'>\n" +
+                "      <car name='Royals' make='Bugatti' year='1931'>\n" +
                 "        <country>France</country>\n" +
                 "        <record type='price'>Most Valuable Car at $15 million</record>\n" +
                 "      </car>\n" +
@@ -116,6 +121,48 @@ public class RestClient {
         return xmlString.toString();
     }
 
+    public void assertXmlResponse(Map<String, String> responseDetail) {
+
+        String xmlString = setXmlStringInVariable();
+        final List<String> list = from(xmlString).getList("records.car.country.list()", String.class);
+        final List<String> list1 = from(xmlString).getList("records.car.record.list()", String.class);
+        final List<String> list2 = from(xmlString).getList("records.car[0..2].@name", String.class);
+        final List<String> list3 = from(xmlString).getList("records.car[0..2].@make", String.class);
+        final List<String> list4 = from(xmlString).getList("records.car[0..2].@year", String.class);
+
+        XmlPath path = new XmlPath(xmlString);
+
+        responseDetail.entrySet().forEach(entry -> {
+            String actualValues = path.getString("records.car.@name");
+            System.out.println("actual => " + actualValues);
+            String expectedValue = entry.getValue();
+            System.out.println("expected =>" + expectedValue);
+            assertThat("asserting car names", actualValues, containsString(expectedValue.toString()));
+        });
+
+        System.out.println("===>" + list);
+        System.out.println("===>" + list1);
+        System.out.println("===>" + list2);
+        System.out.println("===>" + list3);
+        System.out.println("===>" + list4);
+
+        // XmlPath path = new XmlPath(xmlString);
+        System.out.println("print values => " + path.getString("records.car.name"));
+
+        final String name = from(xmlString).getString("records.car[0].@name");
+        assertThat(name, equalTo("HSV Maloo"));
+
+
+        final NodeChildren categories = new XmlPath(xmlString).get("records.car");
+        assertThat(categories.size(), equalTo(3));
+        // XmlPath.from(responseString).setRoot("records").get("car");
+    }
+
+
+    public String setJsonStringInVariable() {
+        jsonCarArray = "{\"car\": [{ \"color\" : \"Black\", \"type\" : \"BMW\" }, { \"color\" : \"Red\", \"type\" : \"FIAT\" }]}";
+        return jsonCarArray.toString();
+    }
 
     public void assertJsonResponse(Map<String, String> table) throws IOException {
         String jsonString = setJsonStringInVariable();
@@ -143,31 +190,6 @@ public class RestClient {
             assertTrue("Field " + entry.getKey() + ", Expected " + expectedValue + ", Actual Values" + actualValues, actualValues.stream().anyMatch(actualValue -> actualValue.equalsIgnoreCase(expectedValue.trim())));
 
         });
-    }
-
-    public void assertXmlResponse(Map<String, String> responseDetail) {
-        final List<String> list = from(xmlString).getList("records.car.country.list()", String.class);
-        final List<String> list1 = from(xmlString).getList("records.car.record.list()", String.class);
-        final List<String> list2 = from(xmlString).getList("records.car[0..2].@name", String.class);
-        final List<String> list3 = from(xmlString).getList("records.car[0..2].@make", String.class);
-        final List<String> list4 = from(xmlString).getList("records.car[0..2].@year", String.class);
-
-        System.out.println("===>" + list);
-        System.out.println("===>" + list1);
-        System.out.println("===>" + list2);
-        System.out.println("===>" + list3);
-        System.out.println("===>" + list4);
-
-        XmlPath path = new XmlPath(xmlString);
-        System.out.println("print values => " + path.getString("records.car[1].@name"));
-
-        final String name = from(xmlString).getString("records.car[0].@name");
-        assertThat(name, equalTo("HSV Maloo"));
-
-
-        final NodeChildren categories = new XmlPath(xmlString).get("records.car");
-        assertThat(categories.size(), equalTo(3));
-        // XmlPath.from(responseString).setRoot("records").get("car");
     }
 
 

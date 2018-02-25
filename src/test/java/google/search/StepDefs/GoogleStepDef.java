@@ -25,11 +25,7 @@ public class GoogleStepDef {
         restClient.setContentType("application/json");
     }
 
-    @Given("^I navigate to elsevier site$")
-    public void test_no() {
-        restClient.setRequestURL("http://www.cellpress.com");
-        restClient.setContentType("application/json");
-    }
+
 
     @Given("^I navigate to fake api post call$")
     public void navigate_to_fake_api() {
